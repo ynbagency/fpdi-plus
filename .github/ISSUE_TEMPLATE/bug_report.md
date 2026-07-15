@@ -19,7 +19,6 @@ Minimal code sample and, if possible, a sample PDF (or how it was generated).
 **Environment**
 - fpdi-plus version:
 - PHP version:
-- setasign/fpdi + setasign/fpdf versions:
 
 **Notes**
 Encrypted PDFs and PDFs with compressed cross-reference streams are unsupported

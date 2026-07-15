@@ -19,3 +19,19 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+===============================================================================
+Third-party code (bundled under src/Engine/)
+===============================================================================
+
+This package includes a vendored, namespaced fork of the following libraries.
+Their original copyright and license notices are retained in every copied file
+and in the license files noted below. This project is not affiliated with or
+endorsed by their authors.
+
+- FPDI — Copyright (c) Setasign GmbH & Co. KG (https://www.setasign.com)
+  Licensed under the MIT License. Full text: src/Engine/LICENSE-FPDI.txt
+
+- FPDF — Copyright (c) Olivier Plathey (http://www.fpdf.org)
+  Permissive FPDF license (free for any use, including modification and
+  redistribution). Full text: src/Engine/LICENSE-FPDF.txt

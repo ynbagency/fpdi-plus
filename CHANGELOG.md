@@ -6,6 +6,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-15
+
+### Changed
+- **Self-contained: removed the `setasign/fpdi` and `setasign/fpdf` dependencies.**
+  A namespaced fork of both is now bundled under `src/Engine/`
+  (`YnbAgency\Fpdi\Engine`), so the package has no external PDF dependencies —
+  only PHP and `ext-zlib`. `Pdf` now extends `YnbAgency\Fpdi\Engine\Fpdi`.
+- `UnsupportedPdfException` message no longer references the commercial
+  fpdi-pdf-parser add-on (it does not apply to the fork).
+
+### Notes
+- Trade-off: FPDI/FPDF upstream fixes are no longer received via `composer update`
+  and must be ported into `src/Engine/` by hand (see README → Maintenance).
+- Upstream license notices for FPDI (MIT) and FPDF (permissive) are retained per
+  file and in `src/Engine/LICENSE-FPDI.txt` / `LICENSE-FPDF.txt`.
+
 ## [0.1.0] - 2026-07-15
 
 Initial release. `YnbAgency\Fpdi\Pdf` extends `setasign\Fpdi\Fpdi` and adds:
@@ -30,5 +46,6 @@ Initial release. `YnbAgency\Fpdi\Pdf` extends `setasign\Fpdi\Fpdi` and adds:
 - Tooling: PHPUnit, PHPStan (level max), PHP-CS-Fixer (PSR-12); CI across PHP
   8.1–8.5 on Linux and Windows, plus lowest-deps and quality/coverage jobs.
 
-[Unreleased]: https://github.com/ynbagency/fpdi-plus/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ynbagency/fpdi-plus/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ynbagency/fpdi-plus/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ynbagency/fpdi-plus/releases/tag/v0.1.0

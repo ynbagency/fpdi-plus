@@ -5,16 +5,15 @@
 [![PHP](https://img.shields.io/packagist/php-v/ynbagency/fpdi-plus)](https://packagist.org/packages/ynbagency/fpdi-plus)
 [![License](https://img.shields.io/packagist/l/ynbagency/fpdi-plus)](LICENSE)
 
-A small PDF import and manipulation toolkit built **on top of**
-[FPDI](https://github.com/Setasign/FPDI) and [FPDF](http://www.fpdf.org/). It adds
-higher-level, batch-oriented helpers — merge, extract, split, watermark, in-memory
-input and string output — on the `setasign\Fpdi\Fpdi` engine, so common tasks are
-one call.
+A small, **self-contained** PDF import and manipulation toolkit. It bundles a
+namespaced fork of [FPDI](https://github.com/Setasign/FPDI) and
+[FPDF](http://www.fpdf.org/) (under `YnbAgency\Fpdi\Engine`) and adds higher-level,
+batch-oriented helpers — merge, extract, split, watermark, in-memory input and
+string output — so common tasks are one call. **No external PDF dependencies.**
 
-> Independent project — **not** affiliated with or endorsed by Setasign. It exists
-> because Setasign's `setasign/fpdi-fpdf` meta package was abandoned in 2020; rather
-> than reviving an empty meta package, this composes the maintained libraries and
-> extends them.
+> Independent project — **not** affiliated with or endorsed by Setasign or the FPDF
+> author. The bundled FPDI (MIT) and FPDF (permissive) code keeps its original
+> license notices; see [LICENSE](LICENSE) and `src/Engine/`.
 
 ## Install
 
@@ -22,7 +21,8 @@ one call.
 composer require ynbagency/fpdi-plus
 ```
 
-Requires **PHP ≥ 8.1**. Pulls in `setasign/fpdi` and `setasign/fpdf`.
+Requires **PHP ≥ 8.1** and `ext-zlib` (standard). Nothing is pulled from Setasign —
+the FPDI + FPDF engine is bundled. `ext-gd` is only needed if you embed raster images.
 
 ## Quick start
 
@@ -85,7 +85,7 @@ try {
     Pdf::merge($files, 'out.pdf');
 } catch (UnsupportedPdfException $e) {
     // missing/unreadable file, or a PDF the bundled parser can't read
-    // $e->getPrevious() holds the original setasign exception, if any
+    // $e->getPrevious() holds the original engine exception, if any
 } catch (ExceptionInterface $e) {
     // any other fpdi-plus failure
 }
@@ -96,16 +96,14 @@ try {
 
 ## Limitations
 
-The bundled **free** FPDI parser cannot read:
+The bundled parser cannot read:
 
 - **encrypted** PDFs, or
 - PDFs with a **compressed cross-reference stream** (common in PDF 1.5+ output from
   Word, LibreOffice, Ghostscript, …).
 
-Both raise `UnsupportedPdfException`. To handle them, install the commercial
-[`setasign/fpdi-pdf-parser`](https://www.setasign.com/products/fpdi-pdf-parser/)
-add-on. See [SECURITY.md](SECURITY.md) for guidance on untrusted input (memory use,
-decompression-bomb risk).
+Both raise `UnsupportedPdfException`. See [SECURITY.md](SECURITY.md) for guidance on
+untrusted input (memory use, decompression-bomb risk).
 
 ## The FPDI base flow
 
@@ -128,8 +126,15 @@ composer check       # cs + analyse + test
 composer coverage    # phpunit with a coverage report (needs xdebug or pcov)
 ```
 
+## Maintenance
+
+The FPDI + FPDF engine under `src/Engine/` is a **vendored fork, not a dependency** —
+so it does **not** receive upstream fixes automatically. Security and bug fixes from
+FPDI/FPDF must be tracked and ported into `src/Engine/` by hand. This is the deliberate
+trade-off for having no external PDF dependencies.
+
 ## License
 
-MIT — see [LICENSE](LICENSE). Built on the MIT-licensed FPDI and on FPDF (which
-ships its own permissive license); their notices are retained under `vendor/` after
-install.
+MIT — see [LICENSE](LICENSE). The bundled fork of FPDI (MIT) and FPDF (permissive)
+retains its upstream copyright and license notices in `src/Engine/`
+(`LICENSE-FPDI.txt`, `LICENSE-FPDF.txt`).

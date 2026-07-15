@@ -3,3 +3,6 @@ parameters:
     paths:
         - src
         - tests
+    excludePaths:
+        # Vendored FPDI + FPDF fork — kept byte-faithful to upstream, not our code to analyse.
+        - src/Engine

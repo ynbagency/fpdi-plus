@@ -28,5 +28,4 @@ If any input can come from an untrusted source (uploads, third parties):
 - **Do not trust filenames or paths** derived from user input.
 
 Encrypted PDFs and PDFs with compressed cross-reference streams are rejected with
-`YnbAgency\Fpdi\Exception\UnsupportedPdfException` by the bundled parser; handling
-them requires the commercial `setasign/fpdi-pdf-parser` add-on.
+`YnbAgency\Fpdi\Exception\UnsupportedPdfException` by the bundled parser.

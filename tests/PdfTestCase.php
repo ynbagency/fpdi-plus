@@ -59,7 +59,7 @@ abstract class PdfTestCase extends TestCase
      */
     protected function makeSourcePdf(int $pages, string $orientation = 'P', string $size = 'A4'): string
     {
-        $fpdf = new \FPDF($orientation, 'mm', $size);
+        $fpdf = new \YnbAgency\Fpdi\Engine\Fpdf($orientation, 'mm', $size);
         for ($i = 1; $i <= $pages; $i++) {
             $fpdf->AddPage();
             $fpdf->SetFont('Arial', 'B', 16);
@@ -80,7 +80,7 @@ abstract class PdfTestCase extends TestCase
      */
     protected function makeMixedSizePdf(array $specs): string
     {
-        $fpdf = new \FPDF('P', 'mm', 'A4');
+        $fpdf = new \YnbAgency\Fpdi\Engine\Fpdf('P', 'mm', 'A4');
         foreach ($specs as $i => [$orientation, $size]) {
             $fpdf->AddPage($orientation, $size);
             $fpdf->SetFont('Arial', 'B', 16);

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace YnbAgency\Fpdi;
 
-use setasign\Fpdi\Fpdi;
-use setasign\Fpdi\PdfParser\CrossReference\CrossReferenceException;
-use setasign\Fpdi\PdfParser\PdfParserException;
-use setasign\Fpdi\PdfParser\StreamReader;
+use YnbAgency\Fpdi\Engine\Fpdi;
+use YnbAgency\Fpdi\Engine\PdfParser\CrossReference\CrossReferenceException;
+use YnbAgency\Fpdi\Engine\PdfParser\PdfParserException;
+use YnbAgency\Fpdi\Engine\PdfParser\StreamReader;
 use YnbAgency\Fpdi\Exception\UnsupportedPdfException;
 
 /**
@@ -21,10 +21,9 @@ use YnbAgency\Fpdi\Exception\UnsupportedPdfException;
  * Base flow inherited from FPDI/FPDF:
  *   setSourceFile() -> importPage() -> AddPage() + useTemplate() -> Output()
  *
- * Limitations: the bundled (free) FPDI parser cannot read encrypted PDFs or
- * PDFs that use a compressed cross-reference stream (common in PDF 1.5+ output
- * from Word/LibreOffice/Ghostscript). Those raise {@see UnsupportedPdfException};
- * install setasign/fpdi-pdf-parser to handle them.
+ * Limitations: the bundled parser cannot read encrypted PDFs or PDFs that use a
+ * compressed cross-reference stream (common in PDF 1.5+ output from
+ * Word/LibreOffice/Ghostscript). Those raise {@see UnsupportedPdfException}.
  *
  * Memory: the batch helpers (merge, extract, watermark, appendFile, appendString)
  * hold every imported page as a form XObject until save()/render() is called;
@@ -33,8 +32,10 @@ use YnbAgency\Fpdi\Exception\UnsupportedPdfException;
  * Subclasses must keep a constructor compatible with FPDF's (all-optional
  * arguments) so that the static factories' `new static()` stays safe.
  *
+ * The import/generation engine is a vendored fork of FPDI + FPDF under
+ * {@see \YnbAgency\Fpdi\Engine}; see src/Engine for the retained upstream notices.
+ *
  * @phpstan-consistent-constructor
- * @see https://github.com/Setasign/FPDI
  */
 class Pdf extends Fpdi
 {
@@ -337,9 +338,8 @@ class Pdf extends Fpdi
             return $this->setSourceFile($source);
         } catch (CrossReferenceException $e) {
             throw new UnsupportedPdfException(
-                'The bundled FPDI parser does not support this PDF (it is encrypted or '
-                . 'uses a compressed cross-reference stream). Install setasign/fpdi-pdf-parser '
-                . 'to handle it.',
+                'This PDF is encrypted or uses a compressed cross-reference stream, '
+                . 'which the bundled parser does not support.',
                 $e->getCode(),
                 $e
             );

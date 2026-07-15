@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace YnbAgency\Fpdi\Tests;
 
-use setasign\Fpdi\PdfParser\CrossReference\CrossReferenceException;
+use YnbAgency\Fpdi\Engine\PdfParser\CrossReference\CrossReferenceException;
 use YnbAgency\Fpdi\Exception\ExceptionInterface;
 use YnbAgency\Fpdi\Exception\UnsupportedPdfException;
 use YnbAgency\Fpdi\Pdf;
@@ -26,10 +26,10 @@ final class UnsupportedPdfTest extends PdfTestCase
             (new Pdf())->importAllPages(self::COMPRESSED_XREF);
             self::fail('Expected UnsupportedPdfException for a compressed-xref PDF.');
         } catch (UnsupportedPdfException $e) {
-            // Package-owned type, and the original setasign cause is preserved.
+            // Package-owned type, and the original engine cause is preserved.
             self::assertInstanceOf(ExceptionInterface::class, $e);
             self::assertInstanceOf(CrossReferenceException::class, $e->getPrevious());
-            self::assertStringContainsString('fpdi-pdf-parser', $e->getMessage());
+            self::assertStringContainsString('compressed cross-reference', $e->getMessage());
         }
     }
 

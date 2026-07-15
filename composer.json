@@ -1,6 +1,6 @@
 {
     "name": "ynbagency/fpdi-plus",
-    "description": "A PDF import and manipulation toolkit built on top of FPDI and FPDF. Adds higher-level page-manipulation helpers on the setasign\\Fpdi engine.",
+    "description": "A self-contained PDF import and manipulation toolkit that bundles a namespaced fork of FPDI and FPDF. Merge, extract, split, watermark, in-memory input and string output, with no external PDF dependencies.",
     "type": "library",
     "keywords": ["pdf", "fpdi", "fpdf", "import", "template", "merge", "split"],
     "license": "MIT",
@@ -17,8 +17,7 @@
     },
     "require": {
         "php": ">=8.1",
-        "setasign/fpdi": "^2.6",
-        "setasign/fpdf": "^1.8.6"
+        "ext-zlib": "*"
     },
     "require-dev": {
         "phpunit/phpunit": "^10.5",
@@ -26,7 +25,7 @@
         "friendsofphp/php-cs-fixer": "^3.64"
     },
     "suggest": {
-        "setasign/fpdi-pdf-parser": "Parse encrypted PDFs and PDFs with compressed cross-reference streams (PDF 1.5+) that the free FPDI parser cannot read."
+        "ext-gd": "Only needed if you embed raster images (JPEG/PNG/GIF) via the bundled engine's Image() method."
     },
     "autoload": {
         "psr-4": {
