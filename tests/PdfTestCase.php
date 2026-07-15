@@ -72,6 +72,27 @@ abstract class PdfTestCase extends TestCase
         return $path;
     }
 
+    /**
+     * Generate a source PDF whose pages have deliberately distinct sizes, so
+     * page selection and ordering can be asserted by reading sizes back.
+     *
+     * @param array<int, array{0: string, 1: string}> $specs [orientation, size] per page.
+     */
+    protected function makeMixedSizePdf(array $specs): string
+    {
+        $fpdf = new \FPDF('P', 'mm', 'A4');
+        foreach ($specs as $i => [$orientation, $size]) {
+            $fpdf->AddPage($orientation, $size);
+            $fpdf->SetFont('Arial', 'B', 16);
+            $fpdf->Cell(40, 10, 'Page ' . ($i + 1));
+        }
+
+        $path = $this->tempPath();
+        $fpdf->Output('F', $path);
+
+        return $path;
+    }
+
     protected function pageCountOf(string $file): int
     {
         return (new Pdf())->setSourceFile($file);

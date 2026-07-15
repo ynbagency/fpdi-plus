@@ -26,6 +26,10 @@ use YnbAgency\Fpdi\Exception\UnsupportedPdfException;
  * from Word/LibreOffice/Ghostscript). Those raise {@see UnsupportedPdfException};
  * install setasign/fpdi-pdf-parser to handle them.
  *
+ * Memory: the batch helpers (merge, extract, watermark, appendFile, appendString)
+ * hold every imported page as a form XObject until save()/render() is called;
+ * for very large inputs, process in chunks.
+ *
  * Subclasses must keep a constructor compatible with FPDF's (all-optional
  * arguments) so that the static factories' `new static()` stays safe.
  *
@@ -197,9 +201,19 @@ class Pdf extends Fpdi
      */
     public static function split(string $file, string $outputPattern): int
     {
-        if (sprintf($outputPattern, 1) === $outputPattern) {
+        try {
+            $probeOne = sprintf($outputPattern, 1);
+            $probeTwo = sprintf($outputPattern, 2);
+        } catch (\ArgumentCountError $e) {
             throw new \InvalidArgumentException(
-                'Output pattern must contain a printf integer placeholder, e.g. "page-%02d.pdf".'
+                'Output pattern must contain exactly one integer placeholder, e.g. "page-%02d.pdf".',
+                0,
+                $e
+            );
+        }
+        if ($probeOne === $probeTwo) {
+            throw new \InvalidArgumentException(
+                'Output pattern must contain a varying integer placeholder, e.g. "page-%02d.pdf".'
             );
         }
 

@@ -10,14 +10,29 @@ final class FeaturesTest extends PdfTestCase
 {
     public function testExtractWritesOnlySelectedPagesInOrder(): void
     {
-        $source = $this->makeSourcePdf(5);
+        // Distinct sizes so selection AND order are actually observable.
+        $source = $this->makeMixedSizePdf([
+            ['P', 'A4'],     // page 1 -> ~297 mm tall
+            ['L', 'A5'],     // page 2
+            ['P', 'A3'],     // page 3 -> ~420 mm tall (tallest)
+            ['L', 'Letter'], // page 4
+        ]);
         $output = $this->tempPath();
 
-        $written = Pdf::extract($source, [4, 2], $output);
+        $written = Pdf::extract($source, [3, 1], $output);
 
         self::assertSame(2, $written);
         self::assertSame(2, $this->pageCountOf($output));
-        self::assertStringStartsWith('%PDF-', $this->readBytes($output));
+
+        $reader = new Pdf();
+        $reader->setSourceFile($output);
+        $out1 = $this->pageSize($reader, 1); // must be source page 3 (A3)
+        $out2 = $this->pageSize($reader, 2); // must be source page 1 (A4)
+
+        self::assertGreaterThan(400.0, $out1['height'], 'first output page should be the A3 (page 3)');
+        self::assertGreaterThan(290.0, $out2['height']);
+        self::assertLessThan(310.0, $out2['height'], 'second output page should be the A4 (page 1)');
+        self::assertGreaterThan($out2['height'], $out1['height'], 'order [3,1] must be preserved');
     }
 
     public function testExtractRejectsOutOfRangePage(): void
@@ -62,17 +77,44 @@ final class FeaturesTest extends PdfTestCase
         Pdf::split($source, $this->tempPath() . '-no-placeholder.pdf');
     }
 
+    public function testSplitRejectsLiteralPercentPattern(): void
+    {
+        // "%%d" is a literal "%d" — it would collide every page onto one file.
+        $source = $this->makeSourcePdf(2);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        Pdf::split($source, $this->tempPath() . '-%%d.pdf');
+    }
+
+    public function testSplitRejectsMultiPlaceholderPattern(): void
+    {
+        $source = $this->makeSourcePdf(2);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        Pdf::split($source, $this->tempPath() . '-%d-%d.pdf');
+    }
+
     public function testWatermarkStampsEveryPage(): void
     {
         $source = $this->makeSourcePdf(3);
         $stamp = $this->makeSourcePdf(1);
-        $output = $this->tempPath();
 
-        $written = Pdf::watermark($source, $stamp, $output);
+        $plain = $this->tempPath();
+        Pdf::merge([$source], $plain);
+
+        $stamped = $this->tempPath();
+        $written = Pdf::watermark($source, $stamp, $stamped);
 
         self::assertSame(3, $written);
-        self::assertSame(3, $this->pageCountOf($output));
-        self::assertStringStartsWith('%PDF-', $this->readBytes($output));
+        self::assertSame(3, $this->pageCountOf($stamped));
+
+        // The stamp must actually be placed: the watermarked output carries more
+        // form XObjects than a plain copy of the same source.
+        $plainForms = substr_count($this->readBytes($plain), '/Subtype /Form');
+        $stampedForms = substr_count($this->readBytes($stamped), '/Subtype /Form');
+        self::assertGreaterThan($plainForms, $stampedForms, 'watermark must add the stamp XObject');
     }
 
     public function testWatermarkRejectsOutOfRangeStampPage(): void
@@ -98,15 +140,25 @@ final class FeaturesTest extends PdfTestCase
 
     public function testAppendPagesAppendsSubsetInGivenOrder(): void
     {
-        $source = $this->makeSourcePdf(4);
+        $source = $this->makeMixedSizePdf([
+            ['P', 'A4'],  // page 1
+            ['L', 'A5'],  // page 2
+            ['P', 'A3'],  // page 3 (tallest)
+        ]);
 
         $pdf = new Pdf();
         $appended = $pdf->appendPages($source, [3, 1]);
-
         self::assertSame(2, $appended);
+
         $output = $this->tempPath();
         $pdf->save($output);
         self::assertSame(2, $this->pageCountOf($output));
+
+        $reader = new Pdf();
+        $reader->setSourceFile($output);
+        $out1 = $this->pageSize($reader, 1); // source page 3 (A3)
+        $out2 = $this->pageSize($reader, 2); // source page 1 (A4)
+        self::assertGreaterThan($out2['height'], $out1['height'], 'order [3,1] must be preserved');
     }
 
     public function testRenderReturnsNonEmptyPdfString(): void
