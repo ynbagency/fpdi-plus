@@ -136,7 +136,9 @@ final class PdfTest extends TestCase
     private function pageSize(Pdf $pdf, int $pageNo): array
     {
         $size = $pdf->getTemplateSize($pdf->importPage($pageNo));
-        self::assertIsArray($size);
+        if (!is_array($size)) {
+            self::fail('Expected a template size array.');
+        }
         /** @var array{width: float, height: float, orientation: string} $size */
         return $size;
     }
@@ -144,7 +146,9 @@ final class PdfTest extends TestCase
     private function tempPath(): string
     {
         $path = tempnam(sys_get_temp_dir(), 'fpdiplus_');
-        self::assertIsString($path);
+        if ($path === false) {
+            self::fail('Unable to create a temporary file.');
+        }
         $this->tempFiles[] = $path;
 
         return $path;
