@@ -1,0 +1,15 @@
+/vendor/
+/.phpunit.cache/
+composer.phar
+*.log
+
+# Library convention: dependents resolve their own versions, so the lock
+# file is not committed. Remove this line if you prefer reproducible installs.
+/composer.lock
+
+# IDE / OS
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+/.claude
