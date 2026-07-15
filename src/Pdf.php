@@ -7,13 +7,16 @@ namespace YnbAgency\Fpdi;
 use setasign\Fpdi\Fpdi;
 use setasign\Fpdi\PdfParser\CrossReference\CrossReferenceException;
 use setasign\Fpdi\PdfParser\PdfParserException;
+use setasign\Fpdi\PdfParser\StreamReader;
 use YnbAgency\Fpdi\Exception\UnsupportedPdfException;
 
 /**
  * FPDI-Plus main class.
  *
  * Extends the FPDI import engine (which itself extends FPDF) and adds
- * higher-level, batch-oriented helpers for common PDF manipulation tasks.
+ * higher-level, batch-oriented helpers for common PDF manipulation tasks:
+ * merge, extract, split and watermark, plus in-memory (string) input and
+ * string output.
  *
  * Base flow inherited from FPDI/FPDF:
  *   setSourceFile() -> importPage() -> AddPage() + useTemplate() -> Output()
@@ -24,7 +27,7 @@ use YnbAgency\Fpdi\Exception\UnsupportedPdfException;
  * install setasign/fpdi-pdf-parser to handle them.
  *
  * Subclasses must keep a constructor compatible with FPDF's (all-optional
- * arguments) so that {@see merge()}'s `new static()` stays safe.
+ * arguments) so that the static factories' `new static()` stays safe.
  *
  * @phpstan-consistent-constructor
  * @see https://github.com/Setasign/FPDI
@@ -35,9 +38,8 @@ class Pdf extends Fpdi
      * Import every page of a source PDF in one call.
      *
      * Does not place the pages — it only imports them and returns the template
-     * ids so the caller decides layout. Template ids are valid for the source
-     * file that was active when they were created. Note that this holds one
-     * template per page in memory; for very large PDFs, import selectively.
+     * ids so the caller decides layout. Note that this holds one template per
+     * page in memory; for very large PDFs, import selectively.
      *
      * @param string $file Path to the source PDF.
      * @return array<int, string> Map of 1-based page number => template id.
@@ -45,7 +47,7 @@ class Pdf extends Fpdi
      */
     public function importAllPages(string $file): array
     {
-        $pageCount = $this->openSource($file);
+        $pageCount = $this->openFile($file);
         $templateIds = [];
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
             $templateIds[$pageNo] = $this->importPage($pageNo);
@@ -64,20 +66,74 @@ class Pdf extends Fpdi
      */
     public function appendFile(string $file): int
     {
-        $pageCount = $this->openSource($file);
+        $pageCount = $this->openFile($file);
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
-            $templateId = $this->importPage($pageNo);
-            $size = $this->getTemplateSize($templateId);
-            if (!is_array($size)) {
-                throw new UnsupportedPdfException(
-                    sprintf('Could not determine the size of page %d in "%s".', $pageNo, $file)
-                );
-            }
-            $this->AddPage($size['orientation'], [$size['width'], $size['height']]);
-            $this->useTemplate($templateId);
+            $this->placeCurrentSourcePage($pageNo);
         }
 
         return $pageCount;
+    }
+
+    /**
+     * Append every page of an in-memory PDF (raw bytes) to this document.
+     * Useful for uploaded files that never touch disk.
+     *
+     * @param string $content The raw PDF content.
+     * @return int Number of pages appended.
+     * @throws UnsupportedPdfException If the content is not a supported PDF.
+     */
+    public function appendString(string $content): int
+    {
+        $pageCount = $this->open(StreamReader::createByString($content));
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $this->placeCurrentSourcePage($pageNo);
+        }
+
+        return $pageCount;
+    }
+
+    /**
+     * Append only the given pages of a source PDF, in the given order.
+     *
+     * @param string        $file  Path to the source PDF.
+     * @param iterable<int> $pages 1-based page numbers to append.
+     * @return int Number of pages appended.
+     * @throws UnsupportedPdfException If the file is missing/unreadable or unsupported.
+     * @throws \OutOfRangeException    If a page number is outside the source.
+     */
+    public function appendPages(string $file, iterable $pages): int
+    {
+        $pageCount = $this->openFile($file);
+        $appended = 0;
+        foreach ($pages as $pageNo) {
+            if ($pageNo < 1 || $pageNo > $pageCount) {
+                throw new \OutOfRangeException(
+                    sprintf('Page %d is out of range; "%s" has %d page(s).', $pageNo, $file, $pageCount)
+                );
+            }
+            $this->placeCurrentSourcePage($pageNo);
+            $appended++;
+        }
+
+        return $appended;
+    }
+
+    /**
+     * Return the finished PDF as a binary string (does not write to disk).
+     */
+    public function render(): string
+    {
+        $pdf = $this->Output('S');
+
+        return is_string($pdf) ? $pdf : '';
+    }
+
+    /**
+     * Write the finished PDF to a file.
+     */
+    public function save(string $path): void
+    {
+        $this->Output('F', $path);
     }
 
     /**
@@ -101,14 +157,98 @@ class Pdf extends Fpdi
         foreach ($files as $file) {
             $totalPages += $pdf->appendFile($file);
         }
-
-        $pdf->Output('F', $outputPath);
+        $pdf->save($outputPath);
 
         return $totalPages;
     }
 
     /**
-     * Factory used by {@see merge()} so late static binding lets subclasses
+     * Extract the given pages of a source PDF into a new file.
+     *
+     * @param string        $file       Path to the source PDF.
+     * @param iterable<int> $pages      1-based page numbers to extract, in order.
+     * @param string        $outputPath Destination path.
+     * @return int Number of pages written.
+     * @throws \InvalidArgumentException If no pages are selected.
+     * @throws \OutOfRangeException      If a page number is outside the source.
+     * @throws UnsupportedPdfException   If the source is missing/unreadable or unsupported.
+     */
+    public static function extract(string $file, iterable $pages, string $outputPath): int
+    {
+        $pdf = static::make();
+        $written = $pdf->appendPages($file, $pages);
+        if ($written === 0) {
+            throw new \InvalidArgumentException('No pages selected to extract.');
+        }
+        $pdf->save($outputPath);
+
+        return $written;
+    }
+
+    /**
+     * Split a source PDF into one file per page.
+     *
+     * @param string $file          Path to the source PDF.
+     * @param string $outputPattern printf pattern taking the page number,
+     *                              e.g. "page-%02d.pdf".
+     * @return int Number of files written (one per page).
+     * @throws \InvalidArgumentException If the pattern has no integer placeholder.
+     * @throws UnsupportedPdfException   If the source is missing/unreadable or unsupported.
+     */
+    public static function split(string $file, string $outputPattern): int
+    {
+        if (sprintf($outputPattern, 1) === $outputPattern) {
+            throw new \InvalidArgumentException(
+                'Output pattern must contain a printf integer placeholder, e.g. "page-%02d.pdf".'
+            );
+        }
+
+        $pageCount = static::make()->openFile($file);
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $page = static::make();
+            $page->appendPages($file, [$pageNo]);
+            $page->save(sprintf($outputPattern, $pageNo));
+        }
+
+        return $pageCount;
+    }
+
+    /**
+     * Stamp one page of a stamp PDF over every page of a source PDF, scaled to
+     * cover each page. The stamp is drawn on top of the source content.
+     *
+     * @param string $source     Path to the PDF to stamp.
+     * @param string $stampFile  Path to the PDF holding the stamp/watermark.
+     * @param string $outputPath Destination path.
+     * @param int    $stampPage  1-based page of $stampFile to use as the stamp.
+     * @return int Number of pages written.
+     * @throws \OutOfRangeException    If $stampPage is outside $stampFile.
+     * @throws UnsupportedPdfException If either file is missing/unreadable or unsupported.
+     */
+    public static function watermark(string $source, string $stampFile, string $outputPath, int $stampPage = 1): int
+    {
+        $pdf = static::make();
+
+        $stampCount = $pdf->openFile($stampFile);
+        if ($stampPage < 1 || $stampPage > $stampCount) {
+            throw new \OutOfRangeException(
+                sprintf('Stamp page %d is out of range; "%s" has %d page(s).', $stampPage, $stampFile, $stampCount)
+            );
+        }
+        $stampTemplate = $pdf->importPage($stampPage);
+
+        $pageCount = $pdf->openFile($source);
+        for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
+            $size = $pdf->placeCurrentSourcePage($pageNo);
+            $pdf->useTemplate($stampTemplate, 0, 0, $size['width'], $size['height']);
+        }
+        $pdf->save($outputPath);
+
+        return $pageCount;
+    }
+
+    /**
+     * Factory used by the static helpers so late static binding lets subclasses
      * control instantiation (constructor args, overridden behaviour).
      */
     protected static function make(): static
@@ -117,13 +257,48 @@ class Pdf extends Fpdi
     }
 
     /**
-     * Validate and open a source PDF, translating parser failures into a
-     * package-owned {@see UnsupportedPdfException}.
+     * Import the current source's page, add an output page of the same size and
+     * orientation, and place the imported page on it.
+     *
+     * @return array{width: float, height: float, orientation: string} The placed page's size.
+     * @throws UnsupportedPdfException If the page size cannot be determined.
+     */
+    private function placeCurrentSourcePage(int $pageNo): array
+    {
+        $templateId = $this->importPage($pageNo);
+        $size = $this->getTemplateSize($templateId);
+        if (!is_array($size)) {
+            throw new UnsupportedPdfException(
+                sprintf('Could not determine the size of page %d.', $pageNo)
+            );
+        }
+
+        $rawWidth = $size['width'] ?? null;
+        $rawHeight = $size['height'] ?? null;
+        if (!is_numeric($rawWidth) || !is_numeric($rawHeight)) {
+            throw new UnsupportedPdfException(
+                sprintf('Could not determine the size of page %d.', $pageNo)
+            );
+        }
+        $width = (float) $rawWidth;
+        $height = (float) $rawHeight;
+        $orientation = is_string($size['orientation'] ?? null)
+            ? $size['orientation']
+            : ($width > $height ? 'L' : 'P');
+
+        $this->AddPage($orientation, [$width, $height]);
+        $this->useTemplate($templateId);
+
+        return ['width' => $width, 'height' => $height, 'orientation' => $orientation];
+    }
+
+    /**
+     * Validate a path and open it as the source PDF.
      *
      * @return int The page count of the source.
      * @throws UnsupportedPdfException
      */
-    private function openSource(string $file): int
+    private function openFile(string $file): int
     {
         if (!is_file($file) || !is_readable($file)) {
             throw new UnsupportedPdfException(
@@ -131,22 +306,32 @@ class Pdf extends Fpdi
             );
         }
 
+        return $this->open($file);
+    }
+
+    /**
+     * Open a source (path or in-memory reader), translating parser failures
+     * into a package-owned {@see UnsupportedPdfException}.
+     *
+     * @param string|StreamReader $source
+     * @return int The page count of the source.
+     * @throws UnsupportedPdfException
+     */
+    private function open(string|StreamReader $source): int
+    {
         try {
-            return $this->setSourceFile($file);
+            return $this->setSourceFile($source);
         } catch (CrossReferenceException $e) {
             throw new UnsupportedPdfException(
-                sprintf(
-                    'Cannot read "%s": the bundled FPDI parser does not support this PDF '
-                    . '(it is encrypted or uses a compressed cross-reference stream). '
-                    . 'Install setasign/fpdi-pdf-parser to handle it.',
-                    $file
-                ),
+                'The bundled FPDI parser does not support this PDF (it is encrypted or '
+                . 'uses a compressed cross-reference stream). Install setasign/fpdi-pdf-parser '
+                . 'to handle it.',
                 $e->getCode(),
                 $e
             );
         } catch (PdfParserException $e) {
             throw new UnsupportedPdfException(
-                sprintf('Cannot parse "%s": %s', $file, $e->getMessage()),
+                sprintf('Could not parse the PDF: %s', $e->getMessage()),
                 $e->getCode(),
                 $e
             );
