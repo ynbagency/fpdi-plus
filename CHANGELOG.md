@@ -6,26 +6,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-07-15
+
+Initial release. `YnbAgency\Fpdi\Pdf` extends `setasign\Fpdi\Fpdi` and adds:
+
 ### Added
-- `Pdf::appendFile()` — append every page of a source PDF to the current
-  document, preserving each page's size and orientation.
-- `Exception\UnsupportedPdfException` and `Exception\ExceptionInterface` — a
+- `merge()` — combine several PDFs into one, preserving each page's size/orientation.
+- `extract()` / `appendPages()` — select a subset of pages, in a given order.
+- `split()` — write one file per page via a printf pattern.
+- `watermark()` — stamp a page over every page of a source, scaled to fit.
+- `appendFile()` / `appendString()` — append all pages of a PDF from a path or from
+  raw in-memory bytes (uploads with no temp file).
+- `importAllPages()` — import every page and return the template ids.
+- `render()` / `save()` — output as a string or to a file.
+- `Exception\UnsupportedPdfException` + `Exception\ExceptionInterface` — a
   package-owned exception surface. Missing/unreadable files and PDFs the bundled
-  FPDI parser cannot read (encrypted or compressed cross-reference streams) now
-  raise `UnsupportedPdfException` instead of leaking setasign internals or PHP
-  warnings.
+  FPDI parser cannot read (encrypted or compressed cross-reference streams) raise
+  `UnsupportedPdfException` with the original setasign exception as the previous.
 
-### Changed
-- `Pdf::merge()` now instantiates via `new static()` (late static binding), so
-  subclasses stay in control.
-- `Pdf::merge()` throws `InvalidArgumentException` on an empty file list instead
-  of silently writing a blank one-page PDF.
-
-## [0.1.0]
-
-### Added
-- Initial release: `Pdf` extending `setasign\Fpdi\Fpdi` with `importAllPages()`
-  and static `merge()`, built on FPDI + FPDF.
+### Notes
+- Static factories use late static binding (`new static()`), so subclasses stay in
+  control.
+- Tooling: PHPUnit, PHPStan (level max), PHP-CS-Fixer (PSR-12); CI across PHP
+  8.1–8.5 on Linux and Windows, plus lowest-deps and quality/coverage jobs.
 
 [Unreleased]: https://github.com/ynbagency/fpdi-plus/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/ynbagency/fpdi-plus/releases/tag/v0.1.0
