@@ -33,7 +33,7 @@ final class PdfTest extends TestCase
 
         self::assertCount(3, $templateIds);
         self::assertSame([1, 2, 3], array_keys($templateIds));
-        self::assertContainsOnly('int', $templateIds);
+        self::assertContainsOnly('string', $templateIds);
     }
 
     public function testMergeCombinesAllPagesIntoValidPdf(): void

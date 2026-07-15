@@ -23,6 +23,10 @@ use YnbAgency\Fpdi\Exception\UnsupportedPdfException;
  * from Word/LibreOffice/Ghostscript). Those raise {@see UnsupportedPdfException};
  * install setasign/fpdi-pdf-parser to handle them.
  *
+ * Subclasses must keep a constructor compatible with FPDF's (all-optional
+ * arguments) so that {@see merge()}'s `new static()` stays safe.
+ *
+ * @phpstan-consistent-constructor
  * @see https://github.com/Setasign/FPDI
  */
 class Pdf extends Fpdi
@@ -36,7 +40,7 @@ class Pdf extends Fpdi
      * template per page in memory; for very large PDFs, import selectively.
      *
      * @param string $file Path to the source PDF.
-     * @return array<int, int> Map of 1-based page number => template id.
+     * @return array<int, string> Map of 1-based page number => template id.
      * @throws UnsupportedPdfException If the file is missing/unreadable or unsupported.
      */
     public function importAllPages(string $file): array
@@ -64,7 +68,7 @@ class Pdf extends Fpdi
         for ($pageNo = 1; $pageNo <= $pageCount; $pageNo++) {
             $templateId = $this->importPage($pageNo);
             $size = $this->getTemplateSize($templateId);
-            if ($size === false) {
+            if (!is_array($size)) {
                 throw new UnsupportedPdfException(
                     sprintf('Could not determine the size of page %d in "%s".', $pageNo, $file)
                 );
